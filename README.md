@@ -7,3 +7,6 @@ Saat Crawl
 
 Data di mongodb
 <img width="1488" height="715" alt="image" src="https://github.com/user-attachments/assets/8117aec6-836f-4b0e-a882-2e4cdf5dfab5" />
+
+Task Scheduler
+<img width="1146" height="639" alt="image" src="https://github.com/user-attachments/assets/7c02d26a-7c65-4c52-8f84-1ee010d8c487" />
