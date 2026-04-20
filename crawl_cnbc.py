@@ -17,18 +17,14 @@ client = MongoClient(MONGO_URL)
 db = client[DB_NAME]
 collection = db[COLLECTION_NAME]
 
-# Mencegah data double: Membuat index unik pada URL
-# Jika dijalankan 2x, MongoDB akan otomatis menolak URL yang sudah ada
 collection.create_index("url", unique=True)
 
 def create_driver():
-    """Fungsi untuk membuat browser siluman yang hemat RAM"""
     chrome_options = Options()
     chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
-    # Optimasi: Jangan download gambar agar loading sangat cepat
     prefs = {"profile.managed_default_content_settings.images": 2}
     chrome_options.add_experimental_option("prefs", prefs)
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
@@ -36,12 +32,11 @@ def create_driver():
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
 def get_detail_worker(link):
-    """Proses pengambilan isi berita per artikel"""
     driver = create_driver()
     try:
         print(f"Processing: {link[:50]}...")
         driver.get(link)
-        time.sleep(2) # Tunggu render sejenak
+        time.sleep(2)
         
         soup = BeautifulSoup(driver.page_source, 'lxml')
         
@@ -84,7 +79,6 @@ def run_scraper():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Memulai Crawl CNBC News...")
     start_time = time.time()
     
-    # Step 1: Ambil daftar link berita
     main_driver = create_driver()
     try:
         url = "https://www.cnbcindonesia.com/search?query=Environmental+Sustainability"
@@ -93,7 +87,6 @@ def run_scraper():
         
         soup = BeautifulSoup(main_driver.page_source, 'lxml')
         links = []
-        # Cari link di bagian News
         news_section = soup.find('div', class_='group news')
         search_target = news_section if news_section else soup
         
@@ -110,24 +103,19 @@ def run_scraper():
 
         print(f"Ditemukan {len(links)} link. Menjalankan 4 workers paralel...")
 
-        # Step 2: Ambil detail secara paralel (Ngebut)
         results = []
         with ThreadPoolExecutor(max_workers=4) as executor:
-            # Kita ambil 15 berita teratas saja
             futures = [executor.submit(get_detail_worker, link) for link in links[:15]]
             for future in futures:
                 data = future.result()
                 if data:
                     results.append(InsertOne(data))
 
-        # Step 3: Simpan ke MongoDB
         if results:
             try:
-                # ordered=False penting agar jika ada URL duplikat, data lain tetap masuk
                 collection.bulk_write(results, ordered=False)
                 print(f"✅ SUKSES: {len(results)} data diproses ke MongoDB.")
             except Exception as e:
-                # Error E11000 biasanya karena data sudah ada (Duplicate Key)
                 print(f"Selesai. Data duplikat diabaikan, data baru berhasil disimpan.")
         
     except Exception as e:
